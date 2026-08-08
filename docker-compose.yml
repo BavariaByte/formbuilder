@@ -1,0 +1,30 @@
+services:
+  formbuilder:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: girp-formbuilder
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./template_playbooks:/usr/share/nginx/html/template_playbooks:ro
+    # Hardening: nginx needs to write only to /var/cache/nginx, /var/run and /tmp;
+    # everything else stays read-only. nginx still starts as root inside the
+    # container because it binds privileged port 80 — capabilities are dropped
+    # to a minimum required set and privilege escalation is disabled.
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+      - NET_BIND_SERVICE
+      - DAC_OVERRIDE
+    security_opt:
+      - no-new-privileges:true

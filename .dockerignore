@@ -1,0 +1,17 @@
+node_modules
+npm-debug.log
+*.log
+logs
+Dockerfile
+.dockerignore
+.git
+.gitignore
+.gitlab-ci.yml
+dist
+.env
+.env.*
+.DS_Store
+**/.DS_Store
+coverage
+.vscode
+.idea
