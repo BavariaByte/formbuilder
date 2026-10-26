@@ -1,0 +1,67 @@
+{
+  "name": "Leeres Playbook",
+  "desc": "Starte von Grund auf mit einer leeren Arbeitsfläche",
+  "type": "form-definition",
+  "meta": {
+    "id": "neues-playbook",
+    "version": "1"
+  },
+  "schemaId": "",
+  "i18n": {
+    "defaultLocale": "de-DE",
+    "supported": [
+      "de-DE"
+    ]
+  },
+  "form": {
+    "title": {
+      "de-DE": "Neues Playbook"
+    },
+    "progress": {
+      "mode": "percent"
+    },
+    "completion": {
+      "title": {
+        "de-DE": "Vielen Dank"
+      },
+      "description": {
+        "de-DE": "Ihre Eingaben wurden gespeichert."
+      }
+    }
+  },
+  "runtime": {
+    "session": {
+      "resume": {
+        "maxAgeMinutes": 120
+      }
+    }
+  },
+  "variables": [
+    {
+      "id": "score",
+      "initial": 0
+    }
+  ],
+  "calculation": {
+    "checkboxOptionOrder": "definition",
+    "onDivZero": "skip",
+    "rounding": 2,
+    "effectOrder": "action-option"
+  },
+  "flow": {
+    "routingPriority": "options-first",
+    "start": "",
+    "end": "submit"
+  },
+  "questions": [],
+  "_nodePositions": {
+    "__start__": {
+      "x": 0,
+      "y": -30
+    },
+    "__end__": {
+      "x": 500,
+      "y": -30
+    }
+  }
+}

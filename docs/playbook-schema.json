@@ -1,0 +1,479 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/BavariaByte/formbuilder/blob/main/docs/playbook-schema.json",
+  "title": "GIRP Playbook (form-definition), format v1",
+  "description": "Schema for GIRP playbook JSON documents as produced by the Formbuilder exporter and accepted by the Backend-SOCView import validator (lib/playbookValidator.js). Unknown keys are rejected at every level. Additional runtime constraints not expressible in JSON Schema: i18n.defaultLocale must be contained in i18n.supported; flow.start, question defaultNext, option next, routing goto and condition questionId must reference existing question ids (or the 'submit' sentinel); option values must be unique per question; variable ids must be unique; effect $-references and lhs must reference declared variables; condition nesting is limited to depth 5 and overall JSON nesting to depth 15; at most 1000 questions.",
+  "type": "object",
+  "required": ["type", "meta", "i18n", "form", "flow", "questions"],
+  "additionalProperties": false,
+  "properties": {
+    "type": { "const": "form-definition" },
+    "meta": { "$ref": "#/$defs/meta" },
+    "i18n": { "$ref": "#/$defs/i18nConfig" },
+    "form": { "$ref": "#/$defs/form" },
+    "runtime": { "$ref": "#/$defs/runtime" },
+    "variables": {
+      "type": "array",
+      "maxItems": 100,
+      "items": { "$ref": "#/$defs/variable" }
+    },
+    "calculation": { "$ref": "#/$defs/calculation" },
+    "flow": { "$ref": "#/$defs/flow" },
+    "questions": {
+      "type": "array",
+      "maxItems": 1000,
+      "items": { "$ref": "#/$defs/question" }
+    },
+    "schemaId": { "type": "string", "maxLength": 200 },
+    "schemaHash": { "type": "string", "maxLength": 200 },
+    "_nodePositions": {
+      "type": "object",
+      "description": "Editor-only round-trip data: node coordinates keyed by question id or the __start__/__end__ sentinels. Not validated semantically.",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "x": { "type": "number" },
+          "y": { "type": "number" }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+    },
+    "locale": {
+      "type": "string",
+      "pattern": "^[a-z]{2}-[A-Z]{2}$"
+    },
+    "variableId": {
+      "type": "string",
+      "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+      "maxLength": 50
+    },
+    "localizedLabel": {
+      "description": "A translatable short string: either a plain string or an object keyed by locale (xx-XX). A locale value may be a cross-locale reference of the form '@link:xx-XX'.",
+      "oneOf": [
+        { "type": "string", "maxLength": 1000 },
+        {
+          "type": "object",
+          "minProperties": 1,
+          "patternProperties": {
+            "^[a-z]{2}-[A-Z]{2}$": { "type": "string", "maxLength": 1000 }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "localizedDescription": {
+      "description": "A translatable long string (rich description). Same shape as localizedLabel but with a 50000 character limit.",
+      "oneOf": [
+        { "type": "string", "maxLength": 50000 },
+        {
+          "type": "object",
+          "minProperties": 1,
+          "patternProperties": {
+            "^[a-z]{2}-[A-Z]{2}$": { "type": "string", "maxLength": 50000 }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "meta": {
+      "type": "object",
+      "required": ["id", "version"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$",
+          "maxLength": 100,
+          "description": "Stable playbook identifier: lowercase letters, digits and hyphens."
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+$",
+          "description": "Positive integer as a string ('1', '2', ...). Auto-incremented by the Formbuilder on every export."
+        },
+        "title": { "$ref": "#/$defs/localizedLabel" }
+      }
+    },
+    "i18nConfig": {
+      "type": "object",
+      "required": ["defaultLocale", "supported"],
+      "additionalProperties": false,
+      "properties": {
+        "defaultLocale": { "$ref": "#/$defs/locale" },
+        "supported": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/locale" }
+        }
+      }
+    },
+    "form": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": { "$ref": "#/$defs/localizedLabel" },
+        "description": { "$ref": "#/$defs/localizedDescription" },
+        "progress": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": { "enum": ["step", "percent"] }
+          }
+        },
+        "completion": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "title": { "$ref": "#/$defs/localizedLabel" },
+            "description": { "$ref": "#/$defs/localizedDescription" },
+            "summaryEditable": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "session": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "identityQuestionId": { "$ref": "#/$defs/uuid" },
+            "resume": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "maxAgeMinutes": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 525600
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "variable": {
+      "type": "object",
+      "required": ["id", "initial"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/variableId" },
+        "initial": { "type": "number" }
+      }
+    },
+    "calculation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "checkboxOptionOrder": { "enum": ["definition", "alphabetical"] },
+        "onDivZero": { "enum": ["error", "skip"] },
+        "rounding": { "type": "number", "minimum": 0, "maximum": 10 },
+        "effectOrder": { "enum": ["option-action", "action-option"] }
+      }
+    },
+    "flow": {
+      "type": "object",
+      "required": ["start", "end"],
+      "additionalProperties": false,
+      "properties": {
+        "start": {
+          "type": "string",
+          "description": "Question id (UUID) of the first question, 'submit', or '' for an empty playbook."
+        },
+        "end": { "const": "submit" },
+        "routingPriority": { "enum": ["options-first", "actions-first"] },
+        "endBehavior": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "lockAnswers": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "question": {
+      "type": "object",
+      "required": ["id", "type", "defaultNext"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/uuid" },
+        "type": {
+          "enum": ["textzeile", "textbox", "select", "checkbox", "date", "info", "int"]
+        },
+        "label": { "$ref": "#/$defs/localizedLabel" },
+        "defaultNext": {
+          "type": "string",
+          "description": "Fallback navigation target: question id (UUID), 'submit', or ''."
+        },
+        "description": { "$ref": "#/$defs/localizedDescription" },
+        "placeholder": { "$ref": "#/$defs/localizedLabel" },
+        "required": { "type": "boolean" },
+        "validation": { "$ref": "#/$defs/validation" },
+        "actions": {
+          "type": "array",
+          "maxItems": 50,
+          "items": { "$ref": "#/$defs/routingRule" }
+        },
+        "effects": {
+          "type": "array",
+          "maxItems": 20,
+          "items": { "$ref": "#/$defs/effect" }
+        },
+        "image": { "$ref": "#/$defs/image" },
+        "system": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "isIdentity": { "type": "boolean" }
+          }
+        },
+        "options": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 200,
+          "items": { "$ref": "#/$defs/option" }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "enum": ["select", "checkbox"] } } },
+          "then": { "required": ["options"] }
+        },
+        {
+          "if": { "properties": { "type": { "enum": ["textzeile", "textbox"] } } },
+          "then": {
+            "properties": {
+              "validation": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "minLength": { "type": "number", "minimum": 0 },
+                  "maxLength": { "type": "number", "minimum": 0 },
+                  "pattern": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "int" } } },
+          "then": {
+            "properties": {
+              "validation": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "min": { "type": "number" },
+                  "max": { "type": "number" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "date" } } },
+          "then": {
+            "properties": {
+              "validation": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "min": { "type": "string" },
+                  "max": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "checkbox" } } },
+          "then": {
+            "properties": {
+              "validation": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "maxSelections": { "type": "number", "minimum": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "type": { "enum": ["info", "select"] } } },
+          "then": {
+            "properties": {
+              "validation": {
+                "type": "object",
+                "maxProperties": 0,
+                "description": "No validation rules are defined for this question type."
+              }
+            }
+          }
+        }
+      ]
+    },
+    "validation": {
+      "type": "object",
+      "description": "Type-gated validation rules; the allowed keys depend on the question type (see the per-type conditions on the question definition).",
+      "properties": {
+        "minLength": { "type": "number", "minimum": 0 },
+        "maxLength": { "type": "number", "minimum": 0 },
+        "pattern": { "type": "string" },
+        "min": { "type": ["number", "string"] },
+        "max": { "type": ["number", "string"] },
+        "maxSelections": { "type": "number", "minimum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "option": {
+      "type": "object",
+      "required": ["label", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/uuid" },
+        "label": { "$ref": "#/$defs/localizedLabel" },
+        "value": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Stored answer value; must be unique within the question."
+        },
+        "next": {
+          "type": "string",
+          "description": "Branch target when this option is chosen: question id (UUID) or 'submit'."
+        },
+        "effects": {
+          "type": "array",
+          "maxItems": 20,
+          "items": { "$ref": "#/$defs/effect" }
+        }
+      }
+    },
+    "effect": {
+      "type": "object",
+      "required": ["var", "op", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "var": { "$ref": "#/$defs/variableId" },
+        "op": { "enum": ["add", "sub", "mul", "div", "set"] },
+        "value": {
+          "oneOf": [
+            { "type": "number" },
+            {
+              "type": "string",
+              "pattern": "^\\$[a-zA-Z_][a-zA-Z0-9_]*$",
+              "description": "Reference to a declared variable, e.g. '$score'."
+            }
+          ]
+        },
+        "lhs": {
+          "$ref": "#/$defs/variableId",
+          "description": "Function mode: computes var = lhs op value. When lhs is set, value must be a $-reference."
+        },
+        "if": { "$ref": "#/$defs/condition" }
+      }
+    },
+    "routingRule": {
+      "type": "object",
+      "required": ["when"],
+      "additionalProperties": false,
+      "properties": {
+        "when": { "$ref": "#/$defs/condition" },
+        "goto": {
+          "type": "string",
+          "description": "Navigation target: question id (UUID) or 'submit'. Omit for an effect-only rule."
+        },
+        "effects": {
+          "type": "array",
+          "maxItems": 20,
+          "items": { "$ref": "#/$defs/effect" }
+        }
+      }
+    },
+    "condition": {
+      "description": "Either a combinator (anyOf/allOf/not) or a leaf check against a variable or a question answer. Maximum nesting depth: 5.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "anyOf": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/condition" }
+            },
+            "allOf": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/condition" }
+            },
+            "not": { "$ref": "#/$defs/condition" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "var": { "$ref": "#/$defs/variableId" },
+            "questionId": { "$ref": "#/$defs/uuid" },
+            "equals": { "type": ["string", "number", "boolean"] },
+            "notEmpty": { "type": "boolean" },
+            "isEmpty": { "type": "boolean" },
+            "contains": { "type": "string" },
+            "containsAny": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "containsAll": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "gt": { "type": "number" },
+            "gte": { "type": "number" },
+            "lt": { "type": "number" },
+            "lte": { "type": "number" }
+          }
+        }
+      ]
+    },
+    "image": {
+      "type": "object",
+      "required": ["src"],
+      "additionalProperties": false,
+      "properties": {
+        "src": {
+          "type": "object",
+          "minProperties": 1,
+          "description": "Locale-keyed image source. Each value must be '', an '@link:xx-XX' reference, a base64 data URI (data:image/png|jpg|jpeg|gif|webp|svg+xml;base64,...) or an asset path (assets/<name>.<ext>). Path traversal is rejected.",
+          "patternProperties": {
+            "^[a-z]{2}-[A-Z]{2}$": {
+              "type": "string",
+              "anyOf": [
+                { "const": "" },
+                { "pattern": "^@link:[a-z]{2}-[A-Z]{2}$" },
+                { "pattern": "^data:image/(png|jpg|jpeg|gif|webp|svg\\+xml);base64," },
+                { "pattern": "^assets/[a-zA-Z0-9_.-]+\\.(png|jpg|jpeg|gif|webp|svg)$" }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "alt": { "$ref": "#/$defs/localizedLabel" },
+        "caption": { "type": "string", "maxLength": 1000 },
+        "placement": { "enum": ["before", "after"] },
+        "maxHeight": { "type": "number", "minimum": 1, "maximum": 2000 },
+        "fit": { "enum": ["cover", "contain", "fill"] }
+      }
+    }
+  }
+}
